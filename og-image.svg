@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ecfdf5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0fdfa;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14b8a6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d9488;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="200" fill="#10b981" opacity="0.05"/>
+  <circle cx="1100" cy="530" r="250" fill="#14b8a6" opacity="0.05"/>
+  <circle cx="900" cy="100" r="150" fill="#10b981" opacity="0.03"/>
+  
+  <!-- Logo icon -->
+  <g transform="translate(500, 180)">
+    <rect width="100" height="100" rx="22" fill="url(#iconGrad)"/>
+    <path d="M50 25c-6.9-6.9-18-6.9-24.9 0-6.9 6.9-6.9 18 0 24.9L50 75l24.9-25.1c6.9-6.9 6.9-18 0-24.9-6.9-6.9-18-6.9-24.9 0" fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M31 50h10l4.5-9 6 18 4.5-9h10" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Title -->
+  <text x="600" y="340" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="800" fill="#1f2937">HealthPath</text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="400" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500" fill="#6b7280">Your Personal Health Journey</text>
+  
+  <!-- Features -->
+  <g transform="translate(600, 480)" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#059669">
+    <text x="-300" y="0" font-weight="600">🏋️ Workouts</text>
+    <text x="-100" y="0" font-weight="600">🥗 Diet Plans</text>
+    <text x="100" y="0" font-weight="600">😴 Sleep</text>
+    <text x="300" y="0" font-weight="600">🛒 Equipment</text>
+  </g>
+  
+  <!-- AI Badge -->
+  <g transform="translate(490, 520)">
+    <rect width="220" height="40" rx="20" fill="url(#iconGrad)" opacity="0.1"/>
+    <rect x="1" y="1" width="218" height="38" rx="19" fill="none" stroke="url(#iconGrad)" stroke-width="2"/>
+    <text x="110" y="27" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="600" fill="#059669">✨ AI-Powered Plans</text>
+  </g>
+</svg>
