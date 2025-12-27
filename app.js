@@ -7,6 +7,53 @@ const state = {
     healthPlan: null
 };
 
+// LocalStorage Keys
+const STORAGE_KEYS = {
+    ANSWERS: 'healthpath_answers',
+    HEALTH_PLAN: 'healthpath_plan'
+};
+
+// LocalStorage Functions
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEYS.ANSWERS, JSON.stringify(state.answers));
+        if (state.healthPlan) {
+            localStorage.setItem(STORAGE_KEYS.HEALTH_PLAN, JSON.stringify(state.healthPlan));
+        }
+    } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const savedAnswers = localStorage.getItem(STORAGE_KEYS.ANSWERS);
+        const savedPlan = localStorage.getItem(STORAGE_KEYS.HEALTH_PLAN);
+        
+        if (savedAnswers) {
+            state.answers = JSON.parse(savedAnswers);
+        }
+        if (savedPlan) {
+            state.healthPlan = JSON.parse(savedPlan);
+        }
+        return Object.keys(state.answers).length > 0;
+    } catch (e) {
+        console.warn('Failed to load from localStorage:', e);
+        return false;
+    }
+}
+
+function clearLocalStorage() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.ANSWERS);
+        localStorage.removeItem(STORAGE_KEYS.HEALTH_PLAN);
+        state.answers = {};
+        state.healthPlan = null;
+    } catch (e) {
+        console.warn('Failed to clear localStorage:', e);
+    }
+}
+
 // Questions Configuration
 const questions = [
     {
@@ -114,6 +161,55 @@ const elements = {
 function init() {
     lucide.createIcons();
     bindEvents();
+    
+    // Load saved data and show appropriate screen
+    const hasSavedData = loadFromLocalStorage();
+    if (hasSavedData) {
+        showResumePrompt();
+    }
+}
+
+// Show resume prompt if saved data exists
+function showResumePrompt() {
+    const resumeModal = document.createElement('div');
+    resumeModal.id = 'resumeModal';
+    resumeModal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn';
+    resumeModal.innerHTML = `
+        <div class="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
+            <div class="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="history" class="w-7 h-7 text-emerald-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 text-center mb-2">Welcome Back!</h3>
+            <p class="text-gray-600 text-center mb-6">We found your previous progress. Would you like to continue where you left off?</p>
+            <div class="flex gap-3">
+                <button id="startFreshBtn" class="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                    Start Fresh
+                </button>
+                <button id="resumeBtn" class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium hover:shadow-lg transition-all">
+                    Continue
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(resumeModal);
+    lucide.createIcons();
+    
+    document.getElementById('startFreshBtn').addEventListener('click', () => {
+        clearLocalStorage();
+        resumeModal.remove();
+    });
+    
+    document.getElementById('resumeBtn').addEventListener('click', () => {
+        resumeModal.remove();
+        if (state.healthPlan) {
+            // If we have a saved plan, show results directly
+            showScreen('resultsScreen');
+            renderTabContent('overview');
+        } else {
+            // Otherwise start questionnaire with saved answers
+            startQuestionnaire();
+        }
+    });
 }
 
 // Event Bindings
@@ -299,6 +395,7 @@ function bindQuestionEvents(question) {
                 document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 state.answers[question.id] = card.dataset.value;
+                saveToLocalStorage();
             });
         });
     } else if (question.type === 'multiChoice') {
@@ -314,6 +411,7 @@ function bindQuestionEvents(question) {
                 const selected = Array.from(document.querySelectorAll('.checkbox-card.selected'))
                     .map(c => c.dataset.value);
                 state.answers[question.id] = selected;
+                saveToLocalStorage();
             });
         });
     } else if (question.type === 'multiInput') {
@@ -325,6 +423,7 @@ function bindQuestionEvents(question) {
                         state.answers[question.id] = {};
                     }
                     state.answers[question.id][field.id] = input.value;
+                    saveToLocalStorage();
                 });
                 
                 // Handle range input display
@@ -335,6 +434,7 @@ function bindQuestionEvents(question) {
                             state.answers[question.id] = {};
                         }
                         state.answers[question.id][field.id] = input.value;
+                        saveToLocalStorage();
                     });
                 }
             }
@@ -416,6 +516,7 @@ function nextQuestion() {
                 state.answers[question.id][field.id] = input.value;
             }
         });
+        saveToLocalStorage();
     }
     
     if (!validateCurrentQuestion()) {
@@ -459,6 +560,7 @@ async function generateHealthPlan() {
         clearInterval(messageInterval);
         
         state.healthPlan = parseResponse(response);
+        saveToLocalStorage();
         showScreen('resultsScreen');
         renderTabContent('overview');
         
@@ -607,6 +709,12 @@ async function callNetlifyFunction(prompt) {
         },
         body: JSON.stringify({ prompt })
     });
+    
+    // Check if response is JSON (function exists) or HTML (404 page)
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server not configured. Please run with "netlify dev" locally or deploy to Netlify.');
+    }
     
     const data = await response.json();
     
@@ -1040,62 +1148,165 @@ function renderWeeklySchedule(weeklySchedule) {
 
 // Utility Functions
 function restartApp() {
+    clearLocalStorage();
     state.currentStep = 0;
-    state.answers = {};
-    state.healthPlan = null;
     showScreen('welcomeScreen');
 }
 
 function downloadPDF() {
-    // Create a simple text version for download
     const plan = state.healthPlan;
     if (!plan) return;
     
-    let content = `HEALTHPATH - YOUR PERSONALIZED HEALTH PLAN\n`;
-    content += `${'='.repeat(50)}\n\n`;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
     
-    content += `OVERVIEW\n${'-'.repeat(30)}\n`;
-    content += `${plan.overview.summary}\n\n`;
-    content += `BMI: ${plan.overview.bmi} (${plan.overview.bmiCategory})\n`;
-    content += `Daily Calories: ${plan.overview.dailyCalories}\n`;
-    content += `Protein Goal: ${plan.overview.proteinGoal}g\n`;
-    content += `Water Intake: ${plan.overview.waterIntake}\n\n`;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = 20;
     
-    content += `WORKOUT PLAN\n${'-'.repeat(30)}\n`;
+    // Helper function to add text with word wrap
+    function addText(text, fontSize = 10, isBold = false) {
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        const lines = doc.splitTextToSize(text, contentWidth);
+        
+        lines.forEach(line => {
+            if (y > 270) {
+                doc.addPage();
+                y = 20;
+            }
+            doc.text(line, margin, y);
+            y += fontSize * 0.5;
+        });
+        y += 2;
+    }
+    
+    // Helper function to add section header
+    function addSection(title) {
+        if (y > 250) {
+            doc.addPage();
+            y = 20;
+        }
+        y += 5;
+        doc.setFillColor(16, 185, 129);
+        doc.rect(margin, y - 5, contentWidth, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, margin + 3, y + 2);
+        doc.setTextColor(0, 0, 0);
+        y += 12;
+    }
+    
+    // Title
+    doc.setFillColor(5, 150, 105);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HealthPath', margin, 18);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Your Personalized Health Plan', margin, 28);
+    doc.setTextColor(0, 0, 0);
+    y = 45;
+    
+    // Overview Section
+    addSection('OVERVIEW');
+    addText(plan.overview.summary, 10);
+    y += 3;
+    addText(`BMI: ${plan.overview.bmi} (${plan.overview.bmiCategory})`, 10, true);
+    addText(`Daily Calories: ${plan.overview.dailyCalories}`, 10);
+    addText(`Protein Goal: ${plan.overview.proteinGoal}g`, 10);
+    addText(`Water Intake: ${plan.overview.waterIntake}`, 10);
+    
+    // Workout Section
+    addSection('WORKOUT PLAN');
+    addText(`Warm-up: ${plan.workout.warmup}`, 9);
+    y += 2;
     plan.workout.weeklyPlan.forEach(day => {
-        content += `\n${day.day}: ${day.restDay ? 'Rest Day' : day.focus}\n`;
-        if (!day.restDay) {
+        if (day.restDay) {
+            addText(`${day.day}: Rest Day`, 10, true);
+        } else {
+            addText(`${day.day}: ${day.focus} (${day.duration})`, 10, true);
             day.exercises.forEach(ex => {
-                content += `  - ${ex.name}: ${ex.sets}x${ex.reps}\n`;
+                addText(`  • ${ex.name}: ${ex.sets} sets x ${ex.reps} reps`, 9);
             });
         }
+        y += 2;
     });
+    addText(`Cool-down: ${plan.workout.cooldown}`, 9);
     
-    content += `\n\nDIET GUIDELINES\n${'-'.repeat(30)}\n`;
+    // Diet Section
+    addSection('DIET PLAN');
+    addText('Guidelines:', 10, true);
     plan.diet.guidelines.forEach(g => {
-        content += `• ${g}\n`;
+        addText(`  • ${g}`, 9);
+    });
+    y += 3;
+    
+    addText('Breakfast Options:', 10, true);
+    plan.diet.mealPlan.breakfast.forEach(meal => {
+        addText(`  • ${meal.name} (~${meal.calories} cal) - ${meal.description}`, 9);
     });
     
-    content += `\n\nSLEEP SCHEDULE\n${'-'.repeat(30)}\n`;
-    content += `Target: ${plan.sleep.targetHours}\n`;
-    content += `Bedtime: ${plan.sleep.bedtime}\n`;
-    content += `Wake Time: ${plan.sleep.wakeTime}\n`;
+    addText('Lunch Options:', 10, true);
+    plan.diet.mealPlan.lunch.forEach(meal => {
+        addText(`  • ${meal.name} (~${meal.calories} cal) - ${meal.description}`, 9);
+    });
     
-    content += `\n\nRECOMMENDED EQUIPMENT\n${'-'.repeat(30)}\n`;
+    addText('Dinner Options:', 10, true);
+    plan.diet.mealPlan.dinner.forEach(meal => {
+        addText(`  • ${meal.name} (~${meal.calories} cal) - ${meal.description}`, 9);
+    });
+    
+    addText('Snacks:', 10, true);
+    plan.diet.mealPlan.snacks.forEach(snack => {
+        addText(`  • ${snack.name} (~${snack.calories} cal)`, 9);
+    });
+    
+    // Sleep Section
+    addSection('SLEEP SCHEDULE');
+    addText(`Target Sleep: ${plan.sleep.targetHours}`, 10, true);
+    addText(`Bedtime: ${plan.sleep.bedtime}`, 10);
+    addText(`Wake Time: ${plan.sleep.wakeTime}`, 10);
+    y += 2;
+    addText('Evening Routine:', 10, true);
+    plan.sleep.routine.evening.forEach(step => {
+        addText(`  • ${step}`, 9);
+    });
+    addText('Morning Routine:', 10, true);
+    plan.sleep.routine.morning.forEach(step => {
+        addText(`  • ${step}`, 9);
+    });
+    
+    // Equipment Section
+    addSection('RECOMMENDED EQUIPMENT');
     plan.equipment.forEach(item => {
-        content += `• ${item.name} (${item.priority}) - ${item.priceRange}\n`;
+        addText(`${item.name} [${item.priority.toUpperCase()}]`, 10, true);
+        addText(`  ${item.reason}`, 9);
+        addText(`  Price: ${item.priceRange}`, 9);
+        y += 2;
     });
     
-    // Download as text file
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'healthpath-plan.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Weekly Schedule
+    addSection('WEEKLY SCHEDULE');
+    plan.weeklySchedule.forEach(day => {
+        addText(day.day, 10, true);
+        day.schedule.forEach(item => {
+            addText(`  ${item.time} - ${item.activity}`, 9);
+        });
+        y += 2;
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Generated by HealthPath - Your Personal Health Journey', margin, 285);
+    
+    // Save the PDF
+    doc.save('healthpath-plan.pdf');
 }
 
 // Initialize on DOM ready
