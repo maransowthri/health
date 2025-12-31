@@ -687,7 +687,13 @@ Please provide a detailed response in the following JSON format:
         {"time": "6:30 AM", "activity": "Workout"},
         {"time": "8:00 AM", "activity": "Breakfast"}
       ]
-    }
+    },
+    {"day": "Tuesday", "schedule": [...]},
+    {"day": "Wednesday", "schedule": [...]},
+    {"day": "Thursday", "schedule": [...]},
+    {"day": "Friday", "schedule": [...]},
+    {"day": "Saturday", "schedule": [...]},
+    {"day": "Sunday", "schedule": [...]}
   ]
 }
 
